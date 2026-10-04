@@ -593,6 +593,8 @@
 
   // ---------- render: variaveis ----------
   var VAR_FORM_CAT = null;
+  var VAR_FORM_RESP = null;
+  var RESPONSIBLES = ["Flávia", "Fernando"];
 
   function renderVariaveis(){
     var spent = sum(state.variableCosts, "value");
@@ -612,8 +614,10 @@
     }).join("") || '<div class="list-empty" style="margin-top:14px;">Nenhum gasto lançado ainda este mês.</div>';
 
     var selectedChip = VAR_FORM_CAT;
+    var selectedResp = VAR_FORM_RESP;
     var descVal = document.getElementById("varDesc") ? document.getElementById("varDesc").value : "";
     var valueVal = document.getElementById("varValue") ? document.getElementById("varValue").value : "";
+    var dateVal = document.getElementById("varDate") ? document.getElementById("varDate").value : todayISO();
 
     document.getElementById("view-variaveis").innerHTML =
       '<div class="card meta-card">' +
@@ -632,6 +636,10 @@
         '</div></div>' +
         '<div class="field"><label>Descrição</label><input type="text" id="varDesc" placeholder="Ex.: Supermercado" value="'+escapeHtml(descVal)+'"></div>' +
         '<div class="field cur"><label>Valor</label><span>R$</span><input type="number" id="varValue" inputmode="decimal" placeholder="0,00" value="'+escapeHtml(valueVal)+'"></div>' +
+        '<div class="field"><label>Data do gasto</label><input type="date" id="varDate" value="'+escapeHtml(dateVal)+'"></div>' +
+        '<div class="field"><label>Responsável (opcional)</label><div class="chip-row" id="varRespChips">' +
+          RESPONSIBLES.map(function(r){ return '<button type="button" class="chip'+(selectedResp===r?' sel':'')+'" data-resp="'+escapeHtml(r)+'">'+escapeHtml(r)+'</button>'; }).join("") +
+        '</div></div>' +
         '<div class="form-error" id="varError"></div>' +
         '<button class="btn primary" id="varAddBtn" style="width:100%;">Adicionar gasto</button>' +
       '</div>' +
@@ -646,19 +654,29 @@
       chipWrap.querySelectorAll(".chip").forEach(function(c){ c.classList.toggle("sel", c===btn); });
     });
 
+    var respWrap = document.getElementById("varRespChips");
+    respWrap.addEventListener("click", function(e){
+      var btn = e.target.closest(".chip"); if(!btn) return;
+      var val = btn.getAttribute("data-resp");
+      VAR_FORM_RESP = (VAR_FORM_RESP === val) ? null : val;
+      respWrap.querySelectorAll(".chip").forEach(function(c){ c.classList.toggle("sel", c.getAttribute("data-resp")===VAR_FORM_RESP); });
+    });
+
     document.getElementById("varAddBtn").addEventListener("click", async function(){
       var btn = this;
       var errEl = document.getElementById("varError");
       errEl.classList.remove("show");
       var desc = document.getElementById("varDesc").value.trim();
       var val = parseFloat((document.getElementById("varValue").value || "").replace(",","."));
+      var date = document.getElementById("varDate").value || todayISO();
       if(!VAR_FORM_CAT){ flashRequired("varCatChips"); return; }
       if(!desc){ document.getElementById("varDesc").focus(); return; }
       if(!val || val<=0){ document.getElementById("varValue").focus(); return; }
       btn.disabled = true;
       try{
-        await api("/api/variaveis", {method:"POST", body:JSON.stringify({category:VAR_FORM_CAT, name:desc, value:val, date:todayISO()})});
+        await api("/api/variaveis", {method:"POST", body:JSON.stringify({category:VAR_FORM_CAT, name:desc, value:val, date:date, responsible:VAR_FORM_RESP||""})});
         VAR_FORM_CAT = null;
+        VAR_FORM_RESP = null;
         toast("Gasto adicionado");
         await refreshAndRender(false);
       }catch(e){
@@ -778,7 +796,7 @@
 
   // ---------- shared row ----------
   function rowHtml(item, kind){
-    var sub = kind==="fixed" ? item.category : kind==="variable" ? item.category + " · " + fmtDate(item.date) : "Receita mensal";
+    var sub = kind==="fixed" ? item.category : kind==="variable" ? item.category + " · " + fmtDate(item.date) + (item.responsible? " · "+item.responsible : "") : "Receita mensal";
     var dot = kind==="income" ? "" : '<span class="r-cat-dot" style="background:'+catVar(item.category)+'"></span>';
     var pending = pendingIds.indexOf(kind+":"+item.id) !== -1;
     return '<div class="row" data-id="'+item.id+'" data-kind="'+kind+'">' +
