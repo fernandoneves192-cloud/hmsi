@@ -96,9 +96,10 @@ class AppsScriptStore:
         self._call("POST", "set_fixed_paid", {"id": item_id, "paid": paid})
         self._invalidate()
 
-    def add_variable(self, category, name, value, date):
+    def add_variable(self, category, name, value, date, responsible=""):
         item = self._call(
-            "POST", "add_variable", {"category": category, "name": name, "value": value, "date": date}
+            "POST", "add_variable",
+            {"category": category, "name": name, "value": value, "date": date, "responsible": responsible},
         )
         self._invalidate()
         return item
@@ -131,8 +132,8 @@ class MemoryStore:
             {"id": next(self._ids), "category": "Saúde", "name": "Plano de saúde", "value": 340, "dueDate": "2026-10-20", "paid": False},
         ]
         self.variable = [
-            {"id": next(self._ids), "category": "Alimentação", "name": "Supermercado", "value": 230, "date": "2026-10-01"},
-            {"id": next(self._ids), "category": "Transporte", "name": "Combustível", "value": 160, "date": "2026-10-02"},
+            {"id": next(self._ids), "category": "Alimentação", "name": "Supermercado", "value": 230, "date": "2026-10-01", "responsible": "Flávia"},
+            {"id": next(self._ids), "category": "Transporte", "name": "Combustível", "value": 160, "date": "2026-10-02", "responsible": "Fernando"},
         ]
         self.config = {
             "period": "Outubro 2026",
@@ -182,9 +183,12 @@ class MemoryStore:
                     return i
             return None
 
-    def add_variable(self, category, name, value, date):
+    def add_variable(self, category, name, value, date, responsible=""):
         with self._lock:
-            item = {"id": next(self._ids), "category": category, "name": name, "value": value, "date": date}
+            item = {
+                "id": next(self._ids), "category": category, "name": name, "value": value,
+                "date": date, "responsible": responsible,
+            }
             self.variable.append(item)
             return item
 

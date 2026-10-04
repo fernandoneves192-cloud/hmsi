@@ -98,7 +98,8 @@ def add_variable():
         return jsonify({"error": err}), 400
     if not data["name"].strip() or data["value"] <= 0:
         return jsonify({"error": "Nome e valor são obrigatórios"}), 400
-    item = store.add_variable(data["category"], data["name"].strip(), data["value"], data["date"])
+    responsible = str(body.get("responsible") or "")
+    item = store.add_variable(data["category"], data["name"].strip(), data["value"], data["date"], responsible)
     return jsonify(item), 201
 
 
