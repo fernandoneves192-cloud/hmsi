@@ -80,13 +80,20 @@ class AppsScriptStore:
         self._call("POST", "delete_income", {"id": item_id})
         self._invalidate()
 
-    def add_fixed(self, category, name, value):
-        item = self._call("POST", "add_fixed", {"category": category, "name": name, "value": value})
+    def add_fixed(self, category, name, value, due_date="", paid=False):
+        item = self._call(
+            "POST", "add_fixed",
+            {"category": category, "name": name, "value": value, "dueDate": due_date, "paid": paid},
+        )
         self._invalidate()
         return item
 
     def delete_fixed(self, item_id):
         self._call("POST", "delete_fixed", {"id": item_id})
+        self._invalidate()
+
+    def set_fixed_paid(self, item_id, paid):
+        self._call("POST", "set_fixed_paid", {"id": item_id, "paid": paid})
         self._invalidate()
 
     def add_variable(self, category, name, value, date):
@@ -117,11 +124,11 @@ class MemoryStore:
             {"id": next(self._ids), "name": "Freelance", "value": 650},
         ]
         self.fixed = [
-            {"id": next(self._ids), "category": "Moradia", "name": "Aluguel", "value": 1450},
-            {"id": next(self._ids), "category": "Moradia", "name": "Condomínio", "value": 280},
-            {"id": next(self._ids), "category": "Contas", "name": "Energia elétrica", "value": 180},
-            {"id": next(self._ids), "category": "Transporte", "name": "Financiamento do carro", "value": 650},
-            {"id": next(self._ids), "category": "Saúde", "name": "Plano de saúde", "value": 340},
+            {"id": next(self._ids), "category": "Moradia", "name": "Aluguel", "value": 1450, "dueDate": "2026-10-05", "paid": True},
+            {"id": next(self._ids), "category": "Moradia", "name": "Condomínio", "value": 280, "dueDate": "2026-10-10", "paid": False},
+            {"id": next(self._ids), "category": "Contas", "name": "Energia elétrica", "value": 180, "dueDate": "2026-10-15", "paid": False},
+            {"id": next(self._ids), "category": "Transporte", "name": "Financiamento do carro", "value": 650, "dueDate": "2026-10-08", "paid": True},
+            {"id": next(self._ids), "category": "Saúde", "name": "Plano de saúde", "value": 340, "dueDate": "2026-10-20", "paid": False},
         ]
         self.variable = [
             {"id": next(self._ids), "category": "Alimentação", "name": "Supermercado", "value": 230, "date": "2026-10-01"},
@@ -154,15 +161,26 @@ class MemoryStore:
         with self._lock:
             self.incomes = [i for i in self.incomes if i["id"] != item_id]
 
-    def add_fixed(self, category, name, value):
+    def add_fixed(self, category, name, value, due_date="", paid=False):
         with self._lock:
-            item = {"id": next(self._ids), "category": category, "name": name, "value": value}
+            item = {
+                "id": next(self._ids), "category": category, "name": name, "value": value,
+                "dueDate": due_date, "paid": paid,
+            }
             self.fixed.append(item)
             return item
 
     def delete_fixed(self, item_id):
         with self._lock:
             self.fixed = [i for i in self.fixed if i["id"] != item_id]
+
+    def set_fixed_paid(self, item_id, paid):
+        with self._lock:
+            for i in self.fixed:
+                if i["id"] == item_id:
+                    i["paid"] = bool(paid)
+                    return i
+            return None
 
     def add_variable(self, category, name, value, date):
         with self._lock:

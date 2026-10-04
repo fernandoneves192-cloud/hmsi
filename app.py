@@ -69,7 +69,9 @@ def add_fixed():
         return jsonify({"error": err}), 400
     if not data["name"].strip() or data["value"] <= 0:
         return jsonify({"error": "Nome e valor são obrigatórios"}), 400
-    item = store.add_fixed(data["category"], data["name"].strip(), data["value"])
+    due_date = str(body.get("dueDate") or "")
+    paid = bool(body.get("paid", False))
+    item = store.add_fixed(data["category"], data["name"].strip(), data["value"], due_date, paid)
     return jsonify(item), 201
 
 
@@ -77,6 +79,15 @@ def add_fixed():
 def delete_fixed(item_id):
     store.delete_fixed(item_id)
     return "", 204
+
+
+@app.put("/api/fixos/<int:item_id>/pago")
+def set_fixed_paid(item_id):
+    body = request.get_json(silent=True) or {}
+    if "paid" not in body:
+        return jsonify({"error": "Campo 'paid' é obrigatório"}), 400
+    store.set_fixed_paid(item_id, bool(body["paid"]))
+    return jsonify({"ok": True})
 
 
 @app.post("/api/variaveis")
