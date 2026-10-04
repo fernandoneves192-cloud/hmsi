@@ -211,6 +211,23 @@
   .row .r-del[disabled]{ opacity:0.4; pointer-events:none; }
   .list-empty{ padding:24px 16px; text-align:center; color:var(--ink-faint); font-size:0.85rem; }
 
+  .r-check{ position:relative; display:flex; align-items:center; justify-content:center; width:22px; height:22px; flex:none; cursor:pointer; }
+  .r-check input{ position:absolute; inset:0; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+  .r-check-box{
+    width:19px; height:19px; border-radius:6px; border:1.5px solid var(--line); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; transition:background .15s, border-color .15s;
+  }
+  .r-check input:checked + .r-check-box{ background:var(--good); border-color:var(--good); }
+  .r-check-box::after{
+    content:""; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0;
+    transform:rotate(45deg) scale(0); transition:transform .15s; margin-top:-2px;
+  }
+  .r-check input:checked + .r-check-box::after{ transform:rotate(45deg) scale(1); }
+  .r-check input:disabled + .r-check-box{ opacity:0.5; }
+  .r-check input:focus-visible + .r-check-box{ outline:2px solid var(--accent); outline-offset:1px; }
+  .fixed-row.paid .r-name, .fixed-row.paid .r-value{ color:var(--ink-faint); }
+  .fixed-row .r-meta.overdue{ color:var(--bad); }
+
   .list-total{
     display:flex; justify-content:space-between; padding:13px 16px; font-weight:600;
     font-family:'IBM Plex Mono',monospace; font-size:0.9rem; background:var(--surface-2);
@@ -237,7 +254,7 @@
 
   .field{ margin-bottom:16px; }
   .field label{ display:block; font-size:0.78rem; color:var(--ink-soft); margin-bottom:6px; font-weight:500; }
-  .field input[type=number], .field input[type=text]{
+  .field input[type=number], .field input[type=text], .field input[type=date]{
     width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--line);
     background:var(--surface); color:var(--ink); font-size:0.95rem; font-family:'IBM Plex Mono',monospace;
     font-variant-numeric: tabular-nums;
@@ -260,6 +277,9 @@
     color:var(--ink-soft); margin-top:4px; display:flex; justify-content:space-between; gap:10px;
   }
   .goal-note b{ color:var(--ink); font-family:'IBM Plex Mono',monospace; }
+
+  .field-check{ display:flex; align-items:center; gap:10px; }
+  .field-check label{ margin:0; font-size:0.88rem; color:var(--ink); font-weight:500; cursor:pointer; }
 
   nav.tabbar{
     position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:460px;
@@ -453,9 +473,10 @@
   function totals(){
     var incomeTotal = sum(state.incomes, "value");
     var fixedTotal = sum(state.fixedCosts, "value");
+    var fixedPaid = sum(state.fixedCosts.filter(function(i){return i.paid;}), "value");
     var variableSpent = sum(state.variableCosts, "value");
     var savingsGoal = incomeTotal * (state.config.savingsPercent/100);
-    return {incomeTotal:incomeTotal, fixedTotal:fixedTotal, variableSpent:variableSpent, savingsGoal:savingsGoal};
+    return {incomeTotal:incomeTotal, fixedTotal:fixedTotal, fixedPaid:fixedPaid, variableSpent:variableSpent, savingsGoal:savingsGoal};
   }
 
   function categoryBreakdown(){
@@ -488,7 +509,7 @@
   // ---------- render: painel ----------
   function renderPainel(){
     var t = totals();
-    var disponivel = t.incomeTotal - t.fixedTotal - t.variableSpent - t.savingsGoal;
+    var disponivel = t.incomeTotal - t.fixedPaid - t.variableSpent - t.savingsGoal;
     var alocFixo = t.incomeTotal? t.fixedTotal/t.incomeTotal : 0;
     var alocVar = t.incomeTotal? state.config.variableBudget/t.incomeTotal : 0;
     var alocPoup = t.incomeTotal? t.savingsGoal/t.incomeTotal : 0;
@@ -509,11 +530,11 @@
       '<div class="hero">' +
         '<div class="label">Disponível este mês</div>' +
         '<div class="value">'+fmt(disponivel)+'</div>' +
-        '<div class="hint">Receita menos fixos, gastos variáveis e meta de poupança</div>' +
+        '<div class="hint">Receita menos fixos já pagos, gastos variáveis e meta de poupança</div>' +
       '</div>' +
       '<div class="tiles">' +
         '<div class="tile"><div class="t-label">Receita</div><div class="t-value">'+fmt(t.incomeTotal)+'</div><div class="t-sub">'+state.incomes.length+' fonte(s)</div></div>' +
-        '<div class="tile"><div class="t-label">Custos fixos</div><div class="t-value">'+fmt(t.fixedTotal)+'</div><div class="t-sub">'+pct(alocFixo)+' da receita</div></div>' +
+        '<div class="tile"><div class="t-label">Custos fixos</div><div class="t-value">'+fmt(t.fixedTotal)+'</div><div class="t-sub">'+fmt(t.fixedPaid)+' pagos</div></div>' +
         '<div class="tile"><div class="t-label">Gasto variável</div><div class="t-value">'+fmt(t.variableSpent)+'</div><div class="t-sub">meta '+fmt(state.config.variableBudget)+'</div></div>' +
         '<div class="tile"><div class="t-label">Meta de poupança</div><div class="t-value">'+fmt(t.savingsGoal)+'</div><div class="t-sub">'+state.config.savingsPercent+'% da receita</div></div>' +
       '</div>' +
@@ -540,14 +561,29 @@
   function renderFixos(){
     var total = sum(state.fixedCosts, "value");
     var t = totals();
-    var rows = state.fixedCosts.slice().sort(function(a,b){return b.value-a.value;}).map(function(i){
-      return rowHtml(i, "fixed");
-    }).join("") || '<div class="list-empty">Nenhum custo fixo cadastrado.</div>';
+    var paidTotal = t.fixedPaid;
+    var ratio = total? paidTotal/total : 0;
+    var paidCount = state.fixedCosts.filter(function(i){return i.paid;}).length;
+
+    var rows = state.fixedCosts.slice().sort(function(a,b){
+      if(a.paid !== b.paid) return a.paid ? 1 : -1;
+      var ad = a.dueDate || "9999-99-99", bd = b.dueDate || "9999-99-99";
+      return ad < bd ? -1 : ad > bd ? 1 : 0;
+    }).map(function(i){ return fixedRowHtml(i); }).join("") || '<div class="list-empty">Nenhum custo fixo cadastrado.</div>';
 
     document.getElementById("view-fixos").innerHTML =
+      '<div class="card meta-card">' +
+        '<div class="meta-top">' +
+          '<div><div class="meta-spent">'+fmt(paidTotal)+'</div><div class="meta-of">de '+fmt(total)+' provisionados</div></div>' +
+          (state.fixedCosts.length? '<span class="meta-pill good">'+paidCount+' de '+state.fixedCosts.length+' pagas</span>' : '') +
+        '</div>' +
+        '<div class="meta-track"><div class="meta-fill" style="width:'+(ratio*100)+'%; background:var(--good)"></div></div>' +
+        '<div class="meta-foot"><span style="color:var(--ink-faint)">'+pct(ratio)+' pago</span><span style="color:var(--ink-soft); font-family:\'IBM Plex Mono\',monospace;">'+fmt(total-paidTotal)+' a pagar</span></div>' +
+      '</div>' +
+
       '<div class="sec-row"><h2 class="sec">Custos fixos do mês</h2><span class="sec-sub">'+state.fixedCosts.length+' itens</span></div>' +
       '<div class="list">' + rows +
-        (state.fixedCosts.length? '<div class="list-total"><span>Total</span><span>'+fmt(total)+'</span></div>' : '') +
+        (state.fixedCosts.length? '<div class="list-total"><span>Total provisionado</span><span>'+fmt(total)+'</span></div>' : '') +
       '</div>' +
       '<button class="add-btn" id="addFixed">+ Adicionar custo fixo</button>' +
       '<div class="goal-note" style="margin-top:16px;"><span>Fixos sobre a receita</span><b>'+pct(t.incomeTotal? total/t.incomeTotal:0)+'</b></div>';
@@ -700,6 +736,46 @@
     });
   }
 
+  // ---------- row: custo fixo (data de vencimento + caixa de pago) ----------
+  function fixedRowHtml(item){
+    var overdue = !item.paid && item.dueDate && item.dueDate < todayISO();
+    var sub = item.category + (item.dueDate ? ' · vence ' + fmtDate(item.dueDate) : '');
+    var pending = pendingIds.indexOf("fixed:"+item.id) !== -1;
+    var checkPending = pendingIds.indexOf("fixedpaid:"+item.id) !== -1;
+    return '<div class="row fixed-row'+(item.paid?' paid':'')+'" data-id="'+item.id+'">' +
+      '<span class="r-cat-dot" style="background:'+catVar(item.category)+'"></span>' +
+      '<label class="r-check" title="Marcar como paga">' +
+        '<input type="checkbox" data-fixed-paid="'+item.id+'" '+(item.paid?'checked':'')+' '+(checkPending?'disabled':'')+'>' +
+        '<span class="r-check-box"></span>' +
+      '</label>' +
+      '<div class="r-main"><div class="r-name">'+escapeHtml(item.name)+'</div><div class="r-meta'+(overdue?' overdue':'')+'">'+escapeHtml(sub)+(overdue?' · atrasada':'')+'</div></div>' +
+      '<div class="r-value">'+fmt(item.value)+'</div>' +
+      '<button class="r-del" aria-label="Remover" data-del="'+item.id+'" data-kind="fixed" '+(pending?'disabled':'')+'>' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 6h14M9 6V4h6v2M7 6l1 14h8l1-14"/></svg>' +
+      '</button>' +
+    '</div>';
+  }
+
+  document.addEventListener("change", async function(e){
+    var cb = e.target.closest("input[data-fixed-paid]");
+    if(!cb) return;
+    var id = Number(cb.getAttribute("data-fixed-paid"));
+    var paid = cb.checked;
+    var key = "fixedpaid:"+id;
+    pendingIds.push(key);
+    cb.disabled = true;
+    try{
+      await api("/api/fixos/" + id + "/pago", {method:"PUT", body:JSON.stringify({paid:paid})});
+      await refreshAndRender(false);
+    }catch(err){
+      toast("Não foi possível atualizar: " + err.message, true);
+      cb.checked = !paid;
+      cb.disabled = false;
+    }finally{
+      pendingIds = pendingIds.filter(function(k){ return k!==key; });
+    }
+  });
+
   // ---------- shared row ----------
   function rowHtml(item, kind){
     var sub = kind==="fixed" ? item.category : kind==="variable" ? item.category + " · " + fmtDate(item.date) : "Receita mensal";
@@ -748,7 +824,9 @@
         CATS.map(function(c){ return '<button type="button" class="chip" data-cat="'+escapeHtml(c.key)+'">'+escapeHtml(c.key)+'</button>'; }).join("") +
       '</div></div>' +
       '<div class="field"><label>Nome</label><input type="text" id="fixName" placeholder="Ex.: Aluguel"></div>' +
-      '<div class="field cur" style="margin-bottom:6px;"><label>Valor mensal</label><span>R$</span><input type="number" id="fixValue" inputmode="decimal" placeholder="0,00"></div>' +
+      '<div class="field cur"><label>Valor mensal</label><span>R$</span><input type="number" id="fixValue" inputmode="decimal" placeholder="0,00"></div>' +
+      '<div class="field"><label>Vencimento (opcional)</label><input type="date" id="fixDue"></div>' +
+      '<div class="field field-check" style="margin-bottom:6px;"><label class="r-check"><input type="checkbox" id="fixPaid"><span class="r-check-box"></span></label><label for="fixPaid">Já paguei essa conta</label></div>' +
       '<div class="form-error" id="fixError"></div>' +
       '<div class="sheet-actions"><button class="btn ghost" id="fixCancel">Cancelar</button><button class="btn primary" id="fixSave">Salvar</button></div>';
     var chosen = null;
@@ -765,12 +843,14 @@
       errEl.classList.remove("show");
       var name = document.getElementById("fixName").value.trim();
       var val = parseFloat((document.getElementById("fixValue").value||"").replace(",","."));
+      var dueDate = document.getElementById("fixDue").value || "";
+      var paid = document.getElementById("fixPaid").checked;
       if(!chosen){ flashRequired("fixCatChips"); return; }
       if(!name){ document.getElementById("fixName").focus(); return; }
       if(!val || val<=0){ document.getElementById("fixValue").focus(); return; }
       btn.disabled = true;
       try{
-        await api("/api/fixos", {method:"POST", body:JSON.stringify({category:chosen, name:name, value:val})});
+        await api("/api/fixos", {method:"POST", body:JSON.stringify({category:chosen, name:name, value:val, dueDate:dueDate, paid:paid})});
         toast("Custo fixo adicionado");
         closeModal();
         await refreshAndRender(false);
