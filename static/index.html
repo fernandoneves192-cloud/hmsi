@@ -34,6 +34,7 @@
 
     --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#c98500;
     --c5:#e87ba4; --c6:#1f8a1f; --c7:#4a3aa7; --c8:#b23b3b;
+    --c9:#0891b2; --c10:#a3267a;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
@@ -58,6 +59,7 @@
 
       --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
       --c5:#d55181; --c6:#3fae3f; --c7:#9085e9; --c8:#e66767;
+      --c9:#38bdd4; --c10:#d1569f;
     }
   }
   :root[data-theme="dark"]{
@@ -82,6 +84,7 @@
 
     --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500;
     --c5:#d55181; --c6:#3fae3f; --c7:#9085e9; --c8:#e66767;
+    --c9:#38bdd4; --c10:#d1569f;
   }
 
   *{box-sizing:border-box;}
@@ -387,14 +390,16 @@
   "use strict";
 
   var CATS = [
-    {key:"Moradia",     v:"c1"},
-    {key:"Alimentação", v:"c2"},
-    {key:"Transporte",  v:"c3"},
-    {key:"Contas",      v:"c4"},
-    {key:"Saúde",       v:"c5"},
-    {key:"Lazer",       v:"c6"},
-    {key:"Assinaturas", v:"c7"},
-    {key:"Outros",      v:"c8"}
+    {key:"Moradia",        v:"c1"},
+    {key:"Alimentação",    v:"c2"},
+    {key:"Transporte",     v:"c3"},
+    {key:"Contas",         v:"c4"},
+    {key:"Saúde",          v:"c5"},
+    {key:"Lazer",          v:"c6"},
+    {key:"Assinaturas",    v:"c7"},
+    {key:"Educação",       v:"c9"},
+    {key:"Telefonia/Net",  v:"c10"},
+    {key:"Outros",         v:"c8"}
   ];
   function catVar(name){ var c = CATS.filter(function(c){return c.key===name;})[0]; return "var(--" + (c? c.v : "c8") + ")"; }
 
